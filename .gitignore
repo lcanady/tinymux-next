@@ -1,0 +1,53 @@
+# Compiled object files and libraries
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+
+# macOS debug symbols
+*.dSYM/
+
+# macOS metadata
+.DS_Store
+.DS_Store?
+._*
+
+# Vim/editor swap files
+*.swp
+*.swo
+*~
+
+# Build artifacts
+mux/src/netmux
+mux/src/unsplit
+mux/src/libmux.so
+mux/src/libmux.a
+mux/src/autoconf.h
+mux/src/config.h
+mux/src/buildnum.data
+mux/src/.depend
+mux/src/Makefile
+mux/src/modules/autoconf.h
+mux/src/modules/config.h
+mux/src/tools/autoconf.h
+mux/src/tools/config.h
+
+# CMake build directories
+mux/src/tests/build/
+
+# Generated module binaries
+mux/src/modules/*.so
+mux/game/bin/
+
+# Runtime data (use volume mounts instead)
+mux/game/data/*.db
+mux/game/data/*.db.new
+mux/game/data/*.db.CRASH
+mux/game/data/netmux.log
+mux/game/data/netmux.pid
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
