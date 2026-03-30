@@ -62,6 +62,37 @@ AC_ARG_ENABLE(
   ])
 AC_SUBST(MEMORY_BASED)
 
+AC_MSG_CHECKING(whether to enable SQLite database backend)
+AC_ARG_ENABLE(
+  [sqlite],
+  AS_HELP_STRING([--enable-sqlite],[enable SQLite database backend (default is NO)]),
+  [
+    if test "x$enableval" = "xno"; then
+      AC_MSG_RESULT(no)
+    else
+      ENABLE_SQLITE="yes"
+      SQLITE_BACKEND="-DSQLITE_BACKEND"
+      SQLITE_SRC="db_sqlite.cpp"
+      SQLITE_OBJ="db_sqlite.o"
+      AC_MSG_RESULT(yes)
+    fi
+  ],
+  [
+    AC_MSG_RESULT(no)
+  ])
+AC_SUBST(SQLITE_BACKEND)
+AC_SUBST(SQLITE_SRC)
+AC_SUBST(SQLITE_OBJ)
+AC_SUBST(SQLITE_LIBS)
+
+if test "x$ENABLE_SQLITE" = "xyes"; then
+    AC_CHECK_HEADER([sqlite3.h], [],
+        [AC_MSG_ERROR([sqlite3.h not found -- install libsqlite3-dev (Debian/Ubuntu) or sqlite (Homebrew)])])
+    AC_CHECK_LIB([sqlite3], [sqlite3_open],
+        [SQLITE_LIBS="-lsqlite3"],
+        [AC_MSG_ERROR([libsqlite3 not found -- install libsqlite3-dev])])
+fi
+
 AC_MSG_CHECKING(whether to enable Stub Slave)
 AC_ARG_ENABLE(
   [stubslave],

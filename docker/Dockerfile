@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     libssl-dev \
     libcurl4-openssl-dev \
+    libsqlite3-dev \
     catch2 \
     pkg-config \
     autoconf \
@@ -30,8 +31,8 @@ WORKDIR /build/mux/src
 # Copy the full mux/ source tree (one level up from WORKDIR)
 COPY mux/ /build/mux/
 
-# Configure and build netmux (C++17, SSL enabled)
-RUN ./configure --enable-ssl
+# Configure and build netmux (C++17, SSL + SQLite enabled)
+RUN ./configure --enable-ssl --enable-sqlite
 RUN make CXXFLAGS=-std=c++17 depend 2>/dev/null; true
 RUN make CXXFLAGS=-std=c++17 -j$(nproc) all
 
@@ -58,6 +59,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     libcurl4 \
+    libsqlite3-0 \
     libpcre2-8-0 \
     python3 \
     python3-pip \

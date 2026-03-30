@@ -29,6 +29,7 @@ TinyMUX is a high-performance MUSH/MUD server written in C++. This fork adds a *
 | Trusted script execution | `execscript.so` | `execscript` |
 | WebSocket bridge (RFC 6455) | core (`bsd.cpp`) | — |
 | GMCP↔WebSocket JSON bridge | core (`ws_gmcp.cpp`) | — |
+| SQLite database backend | core (`db_sqlite.cpp`) | `--enable-sqlite` |
 
 All new softcode functions are **Wizard-only**. See [`docs/`](docs/) for full reference.
 
@@ -76,10 +77,10 @@ Then connect via telnet on port 4201 or a WebSocket client on port 4202.
 
 ```bash
 # Ubuntu / Debian
-apt-get install build-essential libssl-dev libcurl4-openssl-dev libpcre2-dev
+apt-get install build-essential libssl-dev libcurl4-openssl-dev libsqlite3-dev libpcre2-dev
 
 # macOS (Homebrew)
-brew install openssl curl pcre2
+brew install openssl curl sqlite pcre2
 ```
 
 ### Build
@@ -87,11 +88,11 @@ brew install openssl curl pcre2
 ```bash
 cd mux/src
 
-# Standard configuration (SSL + WebSocket + modules)
-./configure --enable-ssl
+# Standard configuration (SSL + WebSocket + SQLite + modules)
+./configure --enable-ssl --enable-sqlite
 
 # Or with optional features
-./configure --enable-realitylvls --enable-wodrealms --enable-stubslave --enable-ssl
+./configure --enable-realitylvls --enable-wodrealms --enable-stubslave --enable-ssl --enable-sqlite
 
 # Generate dependencies, then build
 make depend

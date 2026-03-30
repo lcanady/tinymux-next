@@ -1457,6 +1457,20 @@ void dump_database_internal(int dump_type)
             {
                 ReplaceFile(tmpfile, outfn);
             }
+
+#ifdef SQLITE_BACKEND
+            // Write SQLite checkpoint alongside the flatfile dump.
+            // SQLite WAL is atomic so no temp-file dance is needed.
+            {
+                const std::string sqlite_path =
+                    std::string(reinterpret_cast<const char *>(mudconf.outdb))
+                    + ".sqlite3";
+                if (!db_sqlite_write(sqlite_path.c_str()))
+                {
+                    log_perror(T("DMP"), T("SQLT"), T("SQLite checkpoint failed"), outfn);
+                }
+            }
+#endif // SQLITE_BACKEND
         }
         else
         {
@@ -1823,6 +1837,11 @@ void fork_and_dump(int key)
 #define LOAD_GAME_CANNOT_OPEN     (-2)
 #define LOAD_GAME_LOADING_PROBLEM (-3)
 
+#ifdef SQLITE_BACKEND
+#include "db_sqlite.h"
+#include <string>
+#endif // SQLITE_BACKEND
+
 #ifdef MEMORY_BASED
 static int load_game(void)
 #else // MEMORY_BASED
@@ -1853,6 +1872,78 @@ static int load_game(int ccPageFile)
     if (!compressed)
     {
         mux_strncpy(infile, mudconf.indb, sizeof(infile)-1);
+
+#ifdef SQLITE_BACKEND
+        // ----------------------------------------------------------------
+        // SQLite path: load from .sqlite3 if it exists, otherwise migrate
+        // from the flatfile automatically (zero steps for the operator).
+        // ----------------------------------------------------------------
+        {
+            const std::string sqlite_path =
+                std::string(reinterpret_cast<const char *>(mudconf.indb)) + ".sqlite3";
+
+            if (db_sqlite_exists(sqlite_path.c_str()))
+            {
+                // Happy path — SQLite database is already there.
+                if (!db_sqlite_read(sqlite_path.c_str()))
+                {
+                    STARTLOG(LOG_ALWAYS, "INI", "FATAL")
+                    log_text(T("SQLite load failed: "));
+                    log_text(reinterpret_cast<const UTF8 *>(sqlite_path.c_str()));
+                    ENDLOG
+                    return LOAD_GAME_LOADING_PROBLEM;
+                }
+                return LOAD_GAME_SUCCESS;
+            }
+
+            // No SQLite DB yet. Try to migrate from the flatfile.
+            if (stat((char *)infile, &statbuf) != 0)
+            {
+                // Neither exists — fresh start.
+                return LOAD_GAME_NO_INPUT_DB;
+            }
+
+            // Read flatfile into memory using the existing loader.
+            STARTLOG(LOG_STARTUP, "INI", "SQLT")
+            log_text(T("SQLite DB not found. Migrating from flatfile: "));
+            log_text(infile);
+            ENDLOG
+
+            if (!mux_fopen(&f, infile, T("rb")))
+                return LOAD_GAME_CANNOT_OPEN;
+            DebugTotalFiles++;
+            setvbuf(f, nullptr, _IOFBF, 16384);
+
+            if (db_read(f, &db_format, &db_version, &db_flags) < 0)
+            {
+                if (fclose(f) == 0) DebugTotalFiles--;
+                STARTLOG(LOG_ALWAYS, "INI", "FATAL")
+                log_text(T("Flatfile read failed during SQLite migration."));
+                ENDLOG
+                return LOAD_GAME_LOADING_PROBLEM;
+            }
+            if (fclose(f) == 0) DebugTotalFiles--;
+            f = nullptr;
+
+            // Persist to SQLite — from this point forward the server uses it.
+            if (!db_sqlite_write(sqlite_path.c_str()))
+            {
+                STARTLOG(LOG_ALWAYS, "INI", "FATAL")
+                log_text(T("SQLite migration write failed: "));
+                log_text(reinterpret_cast<const UTF8 *>(sqlite_path.c_str()));
+                ENDLOG
+                return LOAD_GAME_LOADING_PROBLEM;
+            }
+
+            STARTLOG(LOG_STARTUP, "INI", "SQLT")
+            log_text(T("Migration complete. Database is now: "));
+            log_text(reinterpret_cast<const UTF8 *>(sqlite_path.c_str()));
+            log_text(T(" (flatfile preserved as backup)"));
+            ENDLOG
+
+            return LOAD_GAME_SUCCESS;
+        }
+#else  // !SQLITE_BACKEND
         if (stat((char *)infile, &statbuf) != 0)
         {
             // Indicate that we couldn't load because the input db didn't
@@ -1867,8 +1958,10 @@ static int load_game(int ccPageFile)
         }
         DebugTotalFiles++;
         setvbuf(f, nullptr, _IOFBF, 16384);
+#endif // SQLITE_BACKEND
     }
 
+#ifndef SQLITE_BACKEND
     // Ok, read it in.
     //
     STARTLOG(LOG_STARTUP, "INI", "LOAD")
@@ -1919,6 +2012,7 @@ static int load_game(int ccPageFile)
         }
     }
     f = 0;
+#endif // !SQLITE_BACKEND
 
 #ifndef MEMORY_BASED
     if (db_flags & V_DATABASE)
