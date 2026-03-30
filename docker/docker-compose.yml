@@ -4,8 +4,11 @@ version: "3.9"
 # TinyMUX:Next — Docker Compose
 # Image: lcanady/tinymux-next
 #
-# Start the server:
+# Start the server (uses ports from netmux.conf by default):
 #   docker compose up server
+#
+# Override any netmux.conf value via environment variables:
+#   MUX_TELNET_PORT=4300 MUX_WS_PORT=4301 MUX_NAME="MyMUSH" docker compose up server
 #
 # Start with data on the host filesystem:
 #   MUX_DATA=./mydata MUX_SCRIPTS=./myscripts docker compose up server
@@ -34,14 +37,19 @@ services:
       dockerfile: docker/Dockerfile
     command: ["server"]
     ports:
-      - "${MUX_TELNET_PORT:-4201}:4201"
-      - "${MUX_WS_PORT:-4202}:4202"
+      - "${MUX_TELNET_PORT:-4201}:${MUX_TELNET_PORT:-4201}"
+      - "${MUX_WS_PORT:-4202}:${MUX_WS_PORT:-4202}"
     volumes:
       - ${MUX_DATA:-mux_data}:/mux/game/data
       - ${MUX_SCRIPTS:-mux_scripts}:/mux/game/scripts
     environment:
-      - MUX_PORT=4201
-      - MUX_WS_PORT=4202
+      # These are passed into the container so entrypoint.sh can patch
+      # netmux.conf before starting the server.  Leave unset to use the
+      # values already in netmux.conf (or the mounted volume's copy).
+      - MUX_TELNET_PORT=${MUX_TELNET_PORT:-}
+      - MUX_WS_PORT=${MUX_WS_PORT:-}
+      - MUX_NAME=${MUX_NAME:-}
+      - MUX_MAX_CLIENTS=${MUX_MAX_CLIENTS:-}
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------

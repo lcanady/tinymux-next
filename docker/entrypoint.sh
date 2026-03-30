@@ -17,6 +17,42 @@ set -euo pipefail
 # Flush Python output immediately (no line-buffering surprises)
 export PYTHONUNBUFFERED=1
 
+# ---------------------------------------------------------------------------
+# netmux.conf helpers
+# ---------------------------------------------------------------------------
+
+# Read a single directive value from netmux.conf.
+# Usage: read_conf "port"  → "4201"
+read_conf() {
+    local key="$1" conf="/mux/game/netmux.conf"
+    awk -v k="$key" '$1==k {print $2; exit}' "$conf" 2>/dev/null || true
+}
+
+# If an environment variable is set, overwrite the matching directive in
+# netmux.conf so the server and Docker are always in sync.
+# Variables honoured:
+#   MUX_TELNET_PORT  → port
+#   MUX_WS_PORT      → ws_port
+#   MUX_WS_ENABLED   → ws_enabled  (yes/no)
+#   MUX_MAX_CLIENTS  → max_players
+#   MUX_NAME         → mud_name
+apply_env_overrides() {
+    local conf="/mux/game/netmux.conf"
+    _patch() {
+        local key="$1" val="$2"
+        if grep -qE "^${key}[[:space:]]" "$conf" 2>/dev/null; then
+            sed -i "s|^${key}[[:space:]].*|${key}    ${val}|" "$conf"
+        else
+            echo "${key}    ${val}" >> "$conf"
+        fi
+    }
+    [ -n "${MUX_TELNET_PORT:-}" ] && _patch port          "$MUX_TELNET_PORT"
+    [ -n "${MUX_WS_PORT:-}"     ] && _patch ws_port       "$MUX_WS_PORT"
+    [ -n "${MUX_WS_ENABLED:-}"  ] && _patch ws_enabled    "$MUX_WS_ENABLED"
+    [ -n "${MUX_MAX_CLIENTS:-}" ] && _patch max_players   "$MUX_MAX_CLIENTS"
+    [ -n "${MUX_NAME:-}"        ] && _patch mud_name      "$MUX_NAME"
+}
+
 RESULTS_DIR=/mux/test_results
 mkdir -p "$RESULTS_DIR"
 
@@ -58,14 +94,21 @@ start_mux() {
     phase "Phase 2: Starting TinyMUX Server"
     cd /mux/game
 
+    apply_env_overrides
+
+    # Determine the telnet port from the (possibly patched) netmux.conf
+    local telnet_port
+    telnet_port=$(read_conf port)
+    telnet_port="${telnet_port:-4201}"
+
     # Start server in background
     ./bin/netmux -c netmux.conf &
     MUX_PID=$!
     echo $MUX_PID > /tmp/mux.pid
-    info "netmux PID=$MUX_PID — waiting for port 4201 …"
+    info "netmux PID=$MUX_PID — waiting for port ${telnet_port} …"
 
     local waited=0
-    while ! nc -z 127.0.0.1 4201 2>/dev/null; do
+    while ! nc -z 127.0.0.1 "${telnet_port}" 2>/dev/null; do
         sleep 1
         waited=$((waited+1))
 
@@ -186,6 +229,10 @@ case "${1:-server}" in
     server)
         info "Starting TinyMUX in server mode"
         cd /mux/game
+        apply_env_overrides
+        _telnet_port=$(read_conf port);  _telnet_port="${_telnet_port:-4201}"
+        _ws_port=$(read_conf ws_port);   _ws_port="${_ws_port:-4202}"
+        info "Telnet port: ${_telnet_port}  |  WebSocket port: ${_ws_port}"
         exec ./bin/netmux -c netmux.conf
         ;;
 
