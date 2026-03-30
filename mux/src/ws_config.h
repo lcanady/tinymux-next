@@ -1,8 +1,8 @@
 /*! \file ws_config.h
  * \brief WebSocket bridge configuration.
  *
- * Parameters are loaded from ws.conf (located in the game directory,
- * alongside netmux.conf).
+ * Parameters are read from the main netmux.conf file (ws_* keys are
+ * silently ignored by the core config parser and picked up here).
  */
 
 #pragma once

@@ -1,8 +1,11 @@
 # =============================================================================
-# TinyMUX WebSocket + Modules — Build & Test Container
-# =============================================================================
-# Stage 1: build TinyMUX, all modules, and the Catch2 unit-test binary.
-# Stage 2: minimal runtime image for integration tests.
+# TinyMUX:Next — Production Server Image
+# Docker Hub: lcanady/tinymux-next
+#
+# A modern rebirth of TinyMUX — WebSocket-native, modular, C++17.
+#
+# Stage 1: builder  — compiles netmux, shared modules, and test binaries.
+# Stage 2: runtime  — minimal production image; test mode available via CMD.
 # =============================================================================
 
 # ---- builder ----------------------------------------------------------------
@@ -44,6 +47,12 @@ RUN cmake -S tests -B tests/build \
 
 # ---- runtime ----------------------------------------------------------------
 FROM ubuntu:24.04 AS runtime
+LABEL org.opencontainers.image.title="TinyMUX:Next" \
+      org.opencontainers.image.description="A modern rebirth of TinyMUX — WebSocket-native, modular, C++17 MUSH server." \
+      org.opencontainers.image.version="2.13.0.6" \
+      org.opencontainers.image.url="https://hub.docker.com/r/lcanady/tinymux-next" \
+      org.opencontainers.image.source="https://github.com/lcanady/tinymux" \
+      org.opencontainers.image.licenses="Artistic-2.0"
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -70,7 +79,6 @@ COPY --from=builder /build/mux/game/text/           /mux/game/text/
 
 # Copy test configuration and scripts
 COPY docker/game/netmux.conf  /mux/game/netmux.conf
-COPY docker/game/ws.conf      /mux/game/ws.conf
 COPY docker/game/scripts/     /mux/game/scripts/
 
 # Copy Python test tools

@@ -2858,7 +2858,7 @@ int DCL_CDECL main(int argc, char *argv[])
     mudconf.config_file = StringClone(conffile);
     mudconf.log_dir = StringClone(pErrorBasename);
     cf_read();
-    ws_config_load("ws.conf");
+    ws_config_load(conffile);
 
     mr = mux_CreateInstance(CID_QueryServer, nullptr, UseSlaveProcess, IID_IQueryControl, (void **)&mudstate.pIQueryControl);
     if (MUX_SUCCEEDED(mr))

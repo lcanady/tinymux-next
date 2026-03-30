@@ -47,44 +47,44 @@ The flow:
 
 ---
 
-## Configuration (ws.conf)
+## Configuration (netmux.conf)
 
-Create `ws.conf` in the same directory as `netmux.conf`:
+WebSocket settings live at the bottom of your main `netmux.conf` — no separate file needed:
 
 ```ini
 # WebSocket bridge configuration
 # All settings are optional; shown values are defaults.
 
-ws_enabled     = yes     # Set to "no" to disable the bridge entirely
-ws_port        = 4202    # Plain (unencrypted) WebSocket port; 0 = disabled
-wss_port       = 0       # TLS WebSocket port; 0 = disabled
-cert_file      =         # Path to PEM certificate file (required when wss_port > 0)
-key_file       =         # Path to PEM private key file  (required when wss_port > 0)
-bind_addr      =         # Interface to bind to; empty = all interfaces (INADDR_ANY)
-ws_max_clients = 100     # Maximum simultaneous WebSocket connections
+ws_enabled     yes      # Set to "no" to disable the bridge entirely
+ws_port        4202     # Plain (unencrypted) WebSocket port; 0 = disabled
+wss_port       0        # TLS WebSocket port; 0 = disabled
+ws_certfile               # Path to PEM certificate file (required when wss_port > 0)
+ws_keyfile                # Path to PEM private key file  (required when wss_port > 0)
+ws_bind                   # Interface to bind to; empty = all interfaces (INADDR_ANY)
+ws_max_clients 100      # Maximum simultaneous WebSocket connections
 ```
 
 ### Minimal config (plain WebSocket on 4202)
 
 ```ini
-ws_enabled = yes
-ws_port    = 4202
+ws_enabled  yes
+ws_port     4202
 ```
 
 ### Disable WebSocket entirely
 
 ```ini
-ws_enabled = no
+ws_enabled  no
 ```
 
 ### Enable WSS (TLS WebSocket) only
 
 ```ini
-ws_enabled = yes
-ws_port    = 0
-wss_port   = 4203
-cert_file  = /etc/ssl/certs/mymush.crt
-key_file   = /etc/ssl/private/mymush.key
+ws_enabled  yes
+ws_port     0
+wss_port    4203
+ws_certfile /etc/ssl/certs/mymush.crt
+ws_keyfile  /etc/ssl/private/mymush.key
 ```
 
 ---
@@ -207,13 +207,13 @@ To enable encrypted WebSocket connections:
    #           /etc/letsencrypt/live/your.domain.com/privkey.pem
    ```
 
-2. **Configure ws.conf**:
+2. **Add to netmux.conf**:
    ```ini
-   ws_enabled = yes
-   ws_port    = 4202    # keep plain WS if you want both
-   wss_port   = 4203
-   cert_file  = /etc/letsencrypt/live/your.domain.com/fullchain.pem
-   key_file   = /etc/letsencrypt/live/your.domain.com/privkey.pem
+   ws_enabled  yes
+   ws_port     4202    # keep plain WS if you want both
+   wss_port    4203
+   ws_certfile /etc/letsencrypt/live/your.domain.com/fullchain.pem
+   ws_keyfile  /etc/letsencrypt/live/your.domain.com/privkey.pem
    ```
 
 3. **Connect from a browser**:

@@ -5675,15 +5675,15 @@ WEBSOCKET
   the game exactly as a standard telnet client would. The bridge is fully
   transparent to the game itself.
 
-  CONFIGURATION (ws.conf in the same directory as netmux.conf):
+  CONFIGURATION (add to the bottom of netmux.conf):
 
-    ws_enabled     = yes    # Set to no to disable entirely
-    ws_port        = 4202   # Plain WebSocket port (0 = disabled)
-    wss_port       = 0      # TLS WebSocket port (0 = disabled)
-    cert_file      =        # PEM certificate (required when wss_port > 0)
-    key_file       =        # PEM private key  (required when wss_port > 0)
-    bind_addr      =        # Interface; empty = all interfaces
-    ws_max_clients = 100    # Max simultaneous WebSocket connections
+    ws_enabled     yes      # Set to no to disable entirely
+    ws_port        4202     # Plain WebSocket port (0 = disabled)
+    wss_port       0        # TLS WebSocket port (0 = disabled)
+    ws_certfile             # PEM certificate (required when wss_port > 0)
+    ws_keyfile              # PEM private key  (required when wss_port > 0)
+    ws_bind                 # Interface; empty = all interfaces
+    ws_max_clients 100      # Max simultaneous WebSocket connections
 
   GMCP SUPPORT:
   GMCP telnet subnegotiations (IAC SB GMCP ... IAC SE) are automatically

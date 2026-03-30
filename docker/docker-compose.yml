@@ -1,19 +1,48 @@
 version: "3.9"
 
 # =============================================================================
-# TinyMUX — Docker Compose
+# TinyMUX:Next — Docker Compose
+# Image: lcanady/tinymux-next
 #
-# Run the test suite:
-#   docker compose run --rm test
-#
-# Run a persistent server:
+# Start the server:
 #   docker compose up server
 #
-# Run a persistent server with data on the host filesystem:
+# Start with data on the host filesystem:
 #   MUX_DATA=./mydata MUX_SCRIPTS=./myscripts docker compose up server
+#
+# Run the full test suite (unit + integration):
+#   docker compose run --rm test
 # =============================================================================
 
 services:
+
+  # ---------------------------------------------------------------------------
+  # server — persistent TinyMUX:Next game server
+  #
+  # Ports:
+  #   4201  telnet / MUD clients (e.g. MUSHclient, Mudlet)
+  #   4202  WebSocket (ws://host:4202)
+  #
+  # Data is stored in named Docker volumes by default.
+  # Override with env vars to use host directories:
+  #   MUX_DATA=./data MUX_SCRIPTS=./scripts docker compose up server
+  # ---------------------------------------------------------------------------
+  server:
+    image: lcanady/tinymux-next
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["server"]
+    ports:
+      - "${MUX_TELNET_PORT:-4201}:4201"
+      - "${MUX_WS_PORT:-4202}:4202"
+    volumes:
+      - ${MUX_DATA:-mux_data}:/mux/game/data
+      - ${MUX_SCRIPTS:-mux_scripts}:/mux/game/scripts
+    environment:
+      - MUX_PORT=4201
+      - MUX_WS_PORT=4202
+    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # mock_httpd — lightweight HTTP server used by the integration test suite
@@ -35,6 +64,7 @@ services:
   # test — run Catch2 unit tests + Python integration tests, then exit
   # ---------------------------------------------------------------------------
   test:
+    image: lcanady/tinymux-next
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -49,38 +79,10 @@ services:
       - test_results:/mux/test_results
     profiles: [test]
 
-  # ---------------------------------------------------------------------------
-  # server — persistent TinyMUX game server
-  #
-  # Ports:
-  #   4201  telnet / MUD clients (e.g. MUSHclient, Mudlet)
-  #   4202  WebSocket (ws://host:4202)
-  #
-  # Data is stored in named Docker volumes by default.
-  # Override with env vars to use host directories:
-  #   MUX_DATA=./data MUX_SCRIPTS=./scripts docker compose up server
-  # ---------------------------------------------------------------------------
-  server:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    command: ["server"]
-    ports:
-      - "${MUX_TELNET_PORT:-4201}:4201"
-      - "${MUX_WS_PORT:-4202}:4202"
-    volumes:
-      - ${MUX_DATA:-mux_data}:/mux/game/data
-      - ${MUX_SCRIPTS:-mux_scripts}:/mux/game/scripts
-    environment:
-      - MUX_PORT=4201
-      - MUX_WS_PORT=4202
-    restart: unless-stopped
-    profiles: [server]
-
 volumes:
-  # Named volume for test result XML/logs
-  test_results:
-
   # Named volumes for persistent server data (database, logs) and scripts
   mux_data:
   mux_scripts:
+
+  # Named volume for test result XML/logs
+  test_results:

@@ -246,13 +246,13 @@ The server opens a second port (default **4202**) accepting RFC 6455 WebSocket c
 { "type": "gmcp", "package": "Char.Vitals", "data": "{\"hp\":100,\"max_hp\":100}" }
 ```
 
-Configure in `ws.conf`:
+Configure in `netmux.conf`:
 
 ```ini
-ws_enabled    = yes
-ws_port       = 4202
-wss_port      = 0        # TLS WebSocket port; 0 = disabled
-ws_max_clients = 100
+ws_enabled     yes
+ws_port        4202
+wss_port       0        # TLS WebSocket port; 0 = disabled
+ws_max_clients 100
 ```
 
 Full reference: [`docs/websocket.md`](docs/websocket.md)
@@ -291,7 +291,7 @@ Full guide: [`docs/testing.md`](docs/testing.md)
 
 ## Configuration Reference
 
-### netmux.conf (key parameters)
+### netmux.conf
 
 ```ini
 port            4201          # Telnet port
@@ -309,21 +309,18 @@ module execscript
 # Logging
 log_file        data/netmux.log
 log_options     all
+
+# WebSocket bridge
+ws_enabled      yes           # Set to "no" to disable
+ws_port         4202          # Plain WebSocket port (0 = disabled)
+wss_port        0             # TLS WebSocket port   (0 = disabled)
+ws_certfile                   # PEM certificate path (wss only)
+ws_keyfile                    # PEM private key path (wss only)
+ws_bind                       # Bind address (empty = all interfaces)
+ws_max_clients  100           # Connection limit
 ```
 
 Full parameter reference: `mux/docs/CONFIGURATION`
-
-### ws.conf
-
-```ini
-ws_enabled    = yes       # Enable WebSocket bridge
-ws_port       = 4202      # Plain WebSocket port (0 = disabled)
-wss_port      = 0         # TLS WebSocket port   (0 = disabled)
-cert_file     =           # PEM certificate path (wss only)
-key_file      =           # PEM private key path (wss only)
-bind_addr     =           # Bind address (empty = all interfaces)
-ws_max_clients = 100      # Connection limit
-```
 
 ---
 
@@ -344,8 +341,7 @@ tinymux/
 │   ├── entrypoint.sh       # Test runner: Catch2 → MUX → integration tests
 │   ├── docker-compose.yml
 │   └── game/
-│       ├── netmux.conf     # Test server configuration
-│       ├── ws.conf         # WebSocket configuration
+│       ├── netmux.conf     # Test server configuration (includes WebSocket settings)
 │       └── scripts/        # execscript sandbox scripts
 ├── mux/
 │   ├── docs/               # Legacy server documentation
@@ -363,7 +359,7 @@ tinymux/
 │       ├── netmux          # Main server binary
 │       ├── ws_proto.cpp/h  # WebSocket RFC 6455 codec
 │       ├── ws_gmcp.cpp/h   # GMCP↔WebSocket bridge
-│       ├── ws_config.cpp/h # ws.conf parser
+│       ├── ws_config.cpp/h # WebSocket config parser (reads from netmux.conf)
 │       └── modules/
 │           ├── jsonparse.cpp/h
 │           ├── httpclient.cpp/h

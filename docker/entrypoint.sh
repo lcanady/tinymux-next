@@ -58,9 +58,6 @@ start_mux() {
     phase "Phase 2: Starting TinyMUX Server"
     cd /mux/game
 
-    # Ensure ws.conf is present
-    cp /mux/game/ws.conf . 2>/dev/null || true
-
     # Start server in background
     ./bin/netmux -c netmux.conf &
     MUX_PID=$!
