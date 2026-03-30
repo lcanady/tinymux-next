@@ -16,16 +16,22 @@ find_package(Threads REQUIRED)
 # Test executable
 # ---------------------------------------------------------------------------
 add_executable(ws_tests
+    # WebSocket bridge tests
     test_ws_proto.cpp
     test_ws_gmcp.cpp
     test_ws_tls.cpp
     ../ws_proto.cpp
     ../ws_gmcp.cpp
     ../ws_config.cpp
+    # Module unit tests (pure logic, no TinyMUX framework dependency)
+    test_execscript.cpp
+    test_jsonparse.cpp
+    test_httpclient.cpp
 )
 
 target_include_directories(ws_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/..  # src/
+    ${CMAKE_CURRENT_SOURCE_DIR}/..          # src/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../modules  # src/modules/ (for *_impl.h, json_logic.h, http_logic.h)
     ${OPENSSL_INCLUDE_DIR}
 )
 

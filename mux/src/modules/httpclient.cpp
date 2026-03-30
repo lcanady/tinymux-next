@@ -78,32 +78,10 @@ extern "C" MUX_RESULT DCL_EXPORT DCL_API mux_Unregister()
 }
 
 // ===========================================================================
-// HTTP execution helpers
+// HTTP execution helpers — see http_logic.h
 // ===========================================================================
 
-#define HTTP_LBUF_SIZE  8000
-#define HTTP_TIMEOUT_S    30L
-#define HTTP_CONNECT_S    10L
-#define HTTP_MAX_REDIRS   10L
-
-// libcurl write callback — appends received bytes to a std::string
-static size_t curl_write_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
-{
-    const size_t total = size * nmemb;
-    auto *buf = static_cast<std::string *>(userdata);
-    // Cap accumulation at 2× LBUF to avoid unbounded memory use
-    if (buf->size() + total <= HTTP_LBUF_SIZE * 2)
-        buf->append(ptr, total);
-    return total;  // must return total even if we discarded some
-}
-
-struct HttpResult
-{
-    bool        ok     = false;
-    long        status = 0;
-    std::string body;
-    std::string errmsg;
-};
+#include "http_logic.h"
 
 // Build a curl_slist from an array of "Name: Value" strings.
 // Returns nullptr if headers is empty.
@@ -201,35 +179,6 @@ static HttpResult do_post(const char *url,
     res.ok   = true;
     res.body = std::move(body);
     return res;
-}
-
-static void emit_result(const HttpResult &res, UTF8 *buff, UTF8 **bufc)
-{
-    auto tp  = *bufc;
-    const auto end = buff + HTTP_LBUF_SIZE - 1;
-
-    auto emit = [&](const char *s) {
-        while (tp < end && *s) *tp++ = static_cast<UTF8>(*s++);
-    };
-
-    if (!res.ok)
-    {
-        emit("#-1 CURL ");
-        emit(res.errmsg.c_str());
-    }
-    else if (res.status < 200 || res.status >= 300)
-    {
-        char status_buf[32];
-        snprintf(status_buf, sizeof(status_buf), "#-1 HTTP %ld", res.status);
-        emit(status_buf);
-    }
-    else
-    {
-        const char *src = res.body.c_str();
-        while (tp < end && *src) *tp++ = static_cast<UTF8>(*src++);
-    }
-
-    *bufc = tp;
 }
 
 // ===========================================================================

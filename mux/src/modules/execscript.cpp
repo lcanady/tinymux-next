@@ -99,28 +99,7 @@ extern "C" MUX_RESULT DCL_EXPORT DCL_API mux_Unregister()
 // Security helpers
 // ---------------------------------------------------------------------------
 
-// Returns true if `name` is a safe script name: only [A-Za-z0-9._-],
-// non-empty, no ".." component, no directory separator.
-static bool safe_script_name(const char *name)
-{
-    if (name == nullptr || *name == '\0') return false;
-
-    // Reject ".." or names starting with '.'
-    if (name[0] == '.') return false;
-
-    for (const char *p = name; *p; ++p)
-    {
-        const char c = *p;
-        if (!((c >= 'A' && c <= 'Z') ||
-              (c >= 'a' && c <= 'z') ||
-              (c >= '0' && c <= '9') ||
-               c == '_' || c == '-' || c == '.'))
-        {
-            return false;
-        }
-    }
-    return true;
-}
+#include "execscript_impl.h"
 
 // ---------------------------------------------------------------------------
 // Script execution

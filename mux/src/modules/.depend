@@ -3,3 +3,6 @@ sample.o: sample.cpp ../autoconf.h ../config.h ../libmux.h ../modules.h sample.h
 sum.o: sum.cpp ../autoconf.h ../config.h ../libmux.h ../modules.h sum.h
 sqlproxy.o: sqlproxy.cpp ../autoconf.h ../config.h ../libmux.h ../modules.h sql.h
 sqlslave.o: sqlslave.cpp ../autoconf.h ../config.h ../libmux.h ../modules.h autoconf.h sql.h
+execscript.o: execscript.cpp ../autoconf.h ../config.h ../libmux.h ../modules.h ../command.h execscript.h
+jsonparse.o: jsonparse.cpp ../autoconf.h ../config.h ../libmux.h ../modules.h jsonparse.h
+httpclient.o: httpclient.cpp ../autoconf.h ../config.h ../libmux.h ../modules.h httpclient.h
