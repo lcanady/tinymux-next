@@ -9,6 +9,9 @@
 #include "autoconf.h"
 #include "config.h"
 #include "externs.h"
+#include "ws_proto.h"
+#include "ws_gmcp.h"
+#include "ws_config.h"
 using namespace std;
 
 #if defined(HAVE_DLOPEN) && defined(STUB_SLAVE)
@@ -1065,7 +1068,7 @@ void PortInfoClose(int *pnPorts, port_info aPorts[], int i)
     }
 }
 
-void PortInfoOpen(int *pnPorts, port_info aPorts[], MUX_ADDRINFO *ai, bool fSSL)
+void PortInfoOpen(int *pnPorts, port_info aPorts[], MUX_ADDRINFO *ai, bool fSSL, bool fWS = false)
 {
     int k = *pnPorts;
     if (  k < MAX_LISTEN_PORTS
@@ -1090,11 +1093,12 @@ void PortInfoOpen(int *pnPorts, port_info aPorts[], MUX_ADDRINFO *ai, bool fSSL)
 #else
         UNUSED_PARAMETER(fSSL);
 #endif
+        aPorts[k].fWS = fWS;
         (*pnPorts)++;
     }
 }
 
-void PortInfoOpenClose(int *pnPorts, port_info aPorts[], IntArray *pia, const UTF8 *ip_address, bool fSSL)
+void PortInfoOpenClose(int *pnPorts, port_info aPorts[], IntArray *pia, const UTF8 *ip_address, bool fSSL, bool fWS = false)
 {
     MUX_ADDRINFO hints = {};
     hints.ai_family = AF_UNSPEC;
@@ -1137,7 +1141,7 @@ void PortInfoOpenClose(int *pnPorts, port_info aPorts[], IntArray *pia, const UT
 
                 if (0 == n)
                 {
-                    PortInfoOpen(pnPorts, aPorts, ai, fSSL);
+                    PortInfoOpen(pnPorts, aPorts, ai, fSSL, fWS);
                 }
             }
             mux_freeaddrinfo(servinfo);
@@ -1208,6 +1212,14 @@ void SetupPorts(int *pnPorts, port_info aPorts[], IntArray *pia, IntArray *piaSS
             PortInfoOpenClose(pnPorts, aPorts, piaSSL, sp, true);
         }
 #endif
+        if (g_ws_config.enabled && g_ws_config.ws_port != 0)
+        {
+            IntArray iaWS;
+            iaWS.n  = 1;
+            int wsPort = static_cast<int>(g_ws_config.ws_port);
+            iaWS.pi = &wsPort;
+            PortInfoOpenClose(pnPorts, aPorts, &iaWS, sp, false, true);
+        }
 
         if (nullptr != ip_address)
         {
@@ -2011,10 +2023,29 @@ DESC *new_connection_initial(port_info* Port)
     {
         d->ssl_session = SSL_new(ssl_ctx);
         SSL_set_fd(d->ssl_session, d->socket);
-        d->ss = SocketState::SSLAcceptAgain;
+        if (Port->fWS)
+        {
+            // TLS WebSocket: finish TLS handshake first, then HTTP upgrade
+            d->ss = SocketState::SSLAcceptAgain;
+            // WssHandshake state is set in new_connection_continue() after SSL accepts
+        }
+        else
+        {
+            d->ss = SocketState::SSLAcceptAgain;
+        }
     }
     else
 #endif
+    if (Port->fWS)
+    {
+        // Plain WebSocket: wait for HTTP Upgrade request
+        d->ws = new ws_state();
+        d->ss = SocketState::WsHandshake;
+        STARTLOG(LOG_DEBUG, "NET", "WS");
+        log_printf(T("new_connection_initial(): WebSocket handshake started (%u)."), d->socket);
+        ENDLOG;
+    }
+    else
     {
         d->ss = SocketState::Accepted;
         new_connection_final(d);
@@ -2287,6 +2318,13 @@ void shutdownsock(DESC *d, int reason)
 
     // Is this desc still in interactive mode?
     //
+    // Free WebSocket state
+    if (d->ws != nullptr)
+    {
+        delete d->ws;
+        d->ws = nullptr;
+    }
+
     if (d->program_data != nullptr)
     {
         int num = 0;
@@ -2513,6 +2551,7 @@ DESC *initializesock(SOCKET s, MUX_SOCKADDR *msa)
     d->width = 78;
     d->quota = mudconf.cmd_quota_max;
     d->program_data = nullptr;
+    d->ws = nullptr;
     d->address = *msa;
     msa->ntop(d->addr, sizeof(d->addr));
 
@@ -4294,6 +4333,122 @@ bool process_input(DESC *d)
         }
         return false;
     }
+    // WebSocket: intercept raw bytes before normal telnet processing
+    //
+    if (d->ss == SocketState::WsHandshake)
+    {
+        // Accumulate HTTP Upgrade request
+        if (d->ws == nullptr)
+        {
+            d->ws = new ws_state();
+        }
+        const size_t space = ws_state::HTTP_BUF_MAX - d->ws->http_buf_len;
+        const size_t take  = (static_cast<size_t>(got) < space)
+                           ? static_cast<size_t>(got) : space;
+        memcpy(d->ws->http_buf + d->ws->http_buf_len, buf, take);
+        d->ws->http_buf_len += take;
+
+        // Check for end of HTTP headers
+        const std::string_view hview(d->ws->http_buf, d->ws->http_buf_len);
+        if (hview.find("\r\n\r\n") != std::string_view::npos)
+        {
+            auto key_opt = ws_parse_http_upgrade(hview);
+            if (!key_opt)
+            {
+                // Not a WebSocket upgrade — drop connection
+                STARTLOG(LOG_NET, "NET", "WS");
+                log_printf(T("process_input(): invalid WS upgrade (%u), dropping."),
+                           d->socket);
+                ENDLOG;
+                mudstate.debug_cmd = cmdsave;
+                return false;
+            }
+
+            // Send 101 response
+            const std::string accept  = ws_compute_accept_key(*key_opt);
+            const std::string resp101 = ws_build_101_response(accept, "mux");
+            queue_write_LEN(d,
+                reinterpret_cast<const UTF8 *>(resp101.data()),
+                resp101.size());
+            process_output(d, false);
+
+            d->ss = SocketState::WsConnected;
+            new_connection_final(d);
+
+            STARTLOG(LOG_DEBUG, "NET", "WS");
+            log_printf(T("process_input(): WebSocket connected (%u)."), d->socket);
+            ENDLOG;
+        }
+        mudstate.debug_cmd = cmdsave;
+        return true;
+    }
+
+    if (d->ss == SocketState::WsConnected)
+    {
+        // Feed raw bytes into the frame decoder
+        if (d->ws == nullptr || d->ws->decoder == nullptr)
+        {
+            mudstate.debug_cmd = cmdsave;
+            return false;
+        }
+        d->ws->decoder->feed(reinterpret_cast<const uint8_t *>(buf),
+                             static_cast<size_t>(got));
+
+        // Process all complete frames
+        while (auto frame_opt = d->ws->decoder->next_frame())
+        {
+            WsFrame &frame = *frame_opt;
+
+            switch (frame.opcode)
+            {
+            case WsOpcode::Text:
+            case WsOpcode::Binary:
+                // Treat payload as a normal MUX command
+                if (!frame.payload.empty())
+                {
+                    process_input_helper(d,
+                        reinterpret_cast<char *>(frame.payload.data()),
+                        static_cast<int>(frame.payload.size()));
+                }
+                break;
+
+            case WsOpcode::Ping:
+            {
+                // Reply with Pong
+                auto pong = WsEncoder::pong(frame.payload);
+                queue_write_LEN(d,
+                    reinterpret_cast<const UTF8 *>(pong.data()),
+                    pong.size());
+                break;
+            }
+
+            case WsOpcode::Close:
+            {
+                // Echo close frame and shut down
+                auto close_frame = WsEncoder::close();
+                queue_write_LEN(d,
+                    reinterpret_cast<const UTF8 *>(close_frame.data()),
+                    close_frame.size());
+                process_output(d, false);
+                mudstate.debug_cmd = cmdsave;
+                return false;
+            }
+
+            default:
+                break;
+            }
+        }
+
+        if (d->ws->decoder->error())
+        {
+            mudstate.debug_cmd = cmdsave;
+            return false;
+        }
+
+        mudstate.debug_cmd = cmdsave;
+        return true;
+    }
+
     process_input_helper(d, buf, got);
     mudstate.debug_cmd = cmdsave;
     return true;

@@ -1,0 +1,54 @@
+@@ =============================================================================
+@@ test_execscript.mux — @rhost/testkit tests for the execscript module
+@@ =============================================================================
+
+@@ Register tests
+@tr testkit/REGISTER=T_ES_ECHO_ONE execscript
+@tr testkit/REGISTER=T_ES_ECHO_MULTI execscript
+@tr testkit/REGISTER=T_ES_UPPER execscript
+@tr testkit/REGISTER=T_ES_TRAILING_NL execscript
+@tr testkit/REGISTER=T_ES_NO_ARGS execscript
+@tr testkit/REGISTER=T_ES_PATH_TRAVERSAL execscript
+@tr testkit/REGISTER=T_ES_SLASH execscript
+@tr testkit/REGISTER=T_ES_DOT_PREFIX execscript
+@tr testkit/REGISTER=T_ES_NOT_FOUND execscript
+
+@@ ---- Test definitions ------------------------------------------------------
+
+&T_ES_ECHO_ONE testkit=
+  [switch(execscript(echo.sh,hello), hello,, #-1 Expected hello)]
+
+&T_ES_ECHO_MULTI testkit=
+  [switch(execscript(echo.sh,foo,bar,baz), foo bar baz,,
+    #-1 Expected 'foo bar baz' got [execscript(echo.sh,foo,bar,baz)])]
+
+&T_ES_UPPER testkit=
+  [switch(execscript(upper.sh,hello), HELLO,, #-1 Expected HELLO)]
+
+&T_ES_TRAILING_NL testkit=
+  @@ echo adds a newline; execscript should strip it
+  [switch(execscript(echo.sh,clean), clean,, #-1 Trailing newline not stripped)]
+
+&T_ES_NO_ARGS testkit=
+  [switch(execscript(), #-1 EXECSCRIPT REQUIRES SCRIPT NAME,,
+    #-1 Expected requires-name error)]
+
+&T_ES_PATH_TRAVERSAL testkit=
+  [switch(execscript(../etc/passwd), #-1 INVALID SCRIPT NAME,,
+    #-1 Path traversal should be rejected)]
+
+&T_ES_SLASH testkit=
+  [switch(execscript(sub/script.sh), #-1 INVALID SCRIPT NAME,,
+    #-1 Slash in name should be rejected)]
+
+&T_ES_DOT_PREFIX testkit=
+  [switch(execscript(.hidden.sh), #-1 INVALID SCRIPT NAME,,
+    #-1 Dot-prefix should be rejected)]
+
+&T_ES_NOT_FOUND testkit=
+  @@ Non-existent script should return error, not crash
+  [switch(1,
+    isnum(execscript(no_such_script.sh)),, @@ empty = pass (returned number would be odd)
+    1, [switch(execscript(no_such_script.sh),
+          #-1*, ,
+          #-1 Expected #-1 error for missing script)])]

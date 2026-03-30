@@ -1,0 +1,98 @@
+@@ =============================================================================
+@@ testkit.mux — TinyMUX in-game test framework (@rhost/testkit compatible)
+@@
+@@ Usage (as Wizard):
+@@   @force me=@tr testkit/LOAD_TESTS
+@@   @force me=@tr testkit/RUN
+@@   @force me=@tr testkit/RUN_SUITE=jsonparse
+@@
+@@ Test definition format:
+@@   &T_<NAME> testkit = [test expression that returns "" on pass, msg on fail]
+@@
+@@ Suite definition format:
+@@   &SUITE_<NAME> testkit = T_NAME1 T_NAME2 ...
+@@ =============================================================================
+
+@@ Create the testkit object if it doesn't exist
+@create Testkit=10
+
+@@ Alias for convenience
+&_OBJ TESTKIT=#[num(Testkit)]
+
+@@  ---- core attributes -------------------------------------------------------
+
+&SUITE_ALL testkit=
+
+&RESULTS testkit=
+
+&PASS_COUNT testkit=0
+
+&FAIL_COUNT testkit=0
+
+@@ Register a test name in the SUITE_ALL and SUITE_<suite> lists
+&REGISTER testkit=
+  &SUITE_ALL me=[setunion(get(me/SUITE_ALL),%0)];
+  @switch isnum(%1)=0,{&SUITE_%1 me=[setunion(get(me/SUITE_%1),%0)]}
+
+@@ Run a single test by attribute name, record result
+&RUN_ONE testkit=
+  @tr me/SETUP;
+  @switch 1=
+    [not(hasattr(me,%0))],{
+      @pemit me=%ch[ansi(yr,SKIP)]%cn %0 (no such test)
+    },{
+      @switch [u(me/%0)]= {
+        ,{
+          @pemit me=%ch[ansi(yg,PASS)]%cn %0;
+          &PASS_COUNT me=[add(get(me/PASS_COUNT),1)]
+        },{
+          @pemit me=%ch[ansi(yr,FAIL)]%cn %0: [u(me/%0)];
+          &FAIL_COUNT me=[add(get(me/FAIL_COUNT),1)];
+          &RESULTS me=[get(me/RESULTS)] [%0:[u(me/%0)]]
+        }
+      }
+    }
+
+@@ Run all tests in a suite  (SUITE_ALL if no arg)
+&RUN_SUITE testkit=
+  @switch isnum(%0)=1,{@pemit me=No suite %0},{
+    @switch hasattr(me,SUITE_%0)=0,{@pemit me=Unknown suite: %0},{
+      @pemit me=%ch=== Suite: %0 ===%cn;
+      @dolist [get(me/SUITE_%0)]={@tr me/RUN_ONE=##}
+    }
+  }
+
+@@ Run ALL tests across all suites
+&RUN testkit=
+  &PASS_COUNT me=0;
+  &FAIL_COUNT me=0;
+  &RESULTS me=;
+  @pemit me=%ch========================================%cn;
+  @pemit me=%ch TinyMUX Module Test Suite%cn;
+  @pemit me=%ch========================================%cn;
+  @tr me/RUN_SUITE=jsonparse;
+  @tr me/RUN_SUITE=execscript;
+  @tr me/RUN_SUITE=httpclient;
+  @tr me/SUMMARY
+
+&SUMMARY testkit=
+  @pemit me=%ch========================================%cn;
+  @pemit me=%ch RESULTS:%cn;
+  @pemit me=%ch  Passed: [ansi(g,[get(me/PASS_COUNT)])]%cn;
+  @pemit me=%ch  Failed: [ansi(r,[get(me/FAIL_COUNT)])]%cn;
+  @switch get(me/FAIL_COUNT)=0,{
+    @pemit me=%ch [ansi(g,ALL TESTS PASSED)]%cn
+  },{
+    @pemit me=%ch [ansi(r,FAILURES:)]%cn;
+    @dolist [get(me/RESULTS)]={@pemit me=  ##}
+  };
+  @pemit me=%ch========================================%cn
+
+@@ SETUP — called before each test (override for fixtures)
+&SETUP testkit=
+
+@@ LOAD_TESTS — @load all test definition files
+&LOAD_TESTS testkit=
+  @readcache tests/softcode/test_jsonparse.mux;
+  @readcache tests/softcode/test_execscript.mux;
+  @readcache tests/softcode/test_httpclient.mux

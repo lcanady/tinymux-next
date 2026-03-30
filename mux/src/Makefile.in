@@ -94,7 +94,8 @@ NETMUX_BASE_SRC = _build.cpp alarm.cpp alloc.cpp attrcache.cpp boolexp.cpp \
     plusemail.cpp powers.cpp quota.cpp rob.cpp set.cpp sha1.cpp \
     speech.cpp stringutil.cpp strtod.cpp svdrand.cpp svdhash.cpp timer.cpp \
     timeabsolute.cpp timedelta.cpp timeparser.cpp timeutil.cpp timezone.cpp \
-    unparse.cpp utf8tables.cpp vattr.cpp walkdb.cpp wild.cpp wiz.cpp
+    unparse.cpp utf8tables.cpp vattr.cpp walkdb.cpp wild.cpp wiz.cpp \
+    ws_proto.cpp ws_gmcp.cpp ws_config.cpp
 NETMUX_BASE_OBJ = _build.o alarm.o alloc.o attrcache.o boolexp.o bsd.o \
     command.o comsys.o conf.o cque.o create.o db.o db_rw.o eval.o file_c.o \
     flags.o funceval.o funceval2.o functions.o funmath.o game.o help.o \
@@ -103,7 +104,7 @@ NETMUX_BASE_OBJ = _build.o alarm.o alloc.o attrcache.o boolexp.o bsd.o \
     plusemail.o powers.o quota.o rob.o set.o sha1.o speech.o \
     stringutil.o strtod.o svdrand.o svdhash.o timer.o timeabsolute.o \
     timedelta.o timeparser.o timeutil.o timezone.o unparse.o utf8tables.o \
-    vattr.o walkdb.o wild.o wiz.o
+    vattr.o walkdb.o wild.o wiz.o ws_proto.o ws_gmcp.o ws_config.o
 
 # Base sources and object files for building @DYNAMICLIB_TARGET@
 #
@@ -167,6 +168,19 @@ NETMUX_OBJ = $(NETMUX_BASE_OBJ) $(REALITY_OBJ)
 
 SUBDIRS = modules tools
 .PHONY: subdirs $(SUBDIRS)
+
+# WebSocket source files need OpenSSL headers.
+# pkg-config gives the right path on both Linux and macOS (brew).
+WS_INCLUDES = $(shell pkg-config --cflags openssl 2>/dev/null || echo "-I/opt/homebrew/opt/openssl@3/include")
+
+ws_proto.o: ws_proto.cpp
+	$(CXX) $(ALLCXXFLAGS) $(WS_INCLUDES) -c $<
+
+ws_gmcp.o: ws_gmcp.cpp
+	$(CXX) $(ALLCXXFLAGS) $(WS_INCLUDES) -c $<
+
+ws_config.o: ws_config.cpp
+	$(CXX) $(ALLCXXFLAGS) $(WS_INCLUDES) -c $<
 
 .cpp.o:
 	$(CXX) $(ALLCXXFLAGS) -c $<

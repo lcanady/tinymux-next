@@ -1,0 +1,17 @@
+# Build artifacts — exclude pre-compiled host binaries from the Docker context.
+# macOS Mach-O .o/.so files would be silently used by make instead of recompiling,
+# then rejected by the Linux linker with "file format not recognized".
+mux/src/*.o
+mux/src/*.o~
+mux/src/modules/*.o
+mux/src/modules/*.so
+mux/src/modules/*.so~
+mux/src/netmux
+mux/src/netmux~
+mux/src/slave
+mux/src/libmux.so
+mux/src/libmux.so~
+mux/src/libmux.bundle
+
+# Ignore macOS metadata
+**/.DS_Store

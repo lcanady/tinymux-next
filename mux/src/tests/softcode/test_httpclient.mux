@@ -1,0 +1,77 @@
+@@ =============================================================================
+@@ test_httpclient.mux — @rhost/testkit tests for the httpclient module
+@@
+@@ IMPORTANT: set MOCK_URL on testkit before running:
+@@   &MOCK_URL testkit=http://mock_httpd:8765
+@@ =============================================================================
+
+@@ Register tests
+@tr testkit/REGISTER=T_HC_GET_200 httpclient
+@tr testkit/REGISTER=T_HC_GET_NAME httpclient
+@tr testkit/REGISTER=T_HC_GET_NESTED httpclient
+@tr testkit/REGISTER=T_HC_GET_ARRAY httpclient
+@tr testkit/REGISTER=T_HC_GET_404 httpclient
+@tr testkit/REGISTER=T_HC_GET_500 httpclient
+@tr testkit/REGISTER=T_HC_GET_NO_URL httpclient
+@tr testkit/REGISTER=T_HC_POST_BASIC httpclient
+@tr testkit/REGISTER=T_HC_POST_DEFAULT_CT httpclient
+@tr testkit/REGISTER=T_HC_POST_CUSTOM_CT httpclient
+@tr testkit/REGISTER=T_HC_POST_NO_ARGS httpclient
+@tr testkit/REGISTER=T_HC_E2E_FETCH_HALVE httpclient
+
+@@ ---- Helper: get mock base URL (set &MOCK_URL on testkit) ---
+@@ Default for local testing — override in container
+&MOCK_URL testkit=http://127.0.0.1:8765
+
+@@ ---- Test definitions -----------------------------------------------------
+
+&T_HC_GET_200 testkit=
+  @@ Just verify it doesn't return an error
+  [switch(1,
+    strmatch(httpget([get(testkit/MOCK_URL)]/json/simple),#-1*),
+      Got error: [httpget([get(testkit/MOCK_URL)]/json/simple)])]
+
+&T_HC_GET_NAME testkit=
+  [switch(json_get([httpget([get(testkit/MOCK_URL)]/json/simple)],name),
+    Hero,, #-1 Expected Hero)]
+
+&T_HC_GET_NESTED testkit=
+  [switch(json_get([httpget([get(testkit/MOCK_URL)]/json/nested)],vitals.hp),
+    42,, #-1 Expected 42)]
+
+&T_HC_GET_ARRAY testkit=
+  [switch(json_get([httpget([get(testkit/MOCK_URL)]/json/array)],[1]),
+    20,, #-1 Expected 20)]
+
+&T_HC_GET_404 testkit=
+  [switch(httpget([get(testkit/MOCK_URL)]/status/404),
+    #-1 HTTP 404,, #-1 Expected #-1 HTTP 404)]
+
+&T_HC_GET_500 testkit=
+  [switch(httpget([get(testkit/MOCK_URL)]/status/500),
+    #-1 HTTP 500,, #-1 Expected #-1 HTTP 500)]
+
+&T_HC_GET_NO_URL testkit=
+  [switch(httpget(), #-1 HTTPGET REQUIRES URL,, #-1 Expected error)]
+
+&T_HC_POST_BASIC testkit=
+  @@ POST to /echo, get body echoed back, verify method=POST
+  [switch(json_get([httppost([get(testkit/MOCK_URL)]/echo,{"x":1})],method),
+    POST,, #-1 Expected method=POST)]
+
+&T_HC_POST_DEFAULT_CT testkit=
+  [switch(json_get([httppost([get(testkit/MOCK_URL)]/echo,data)],ct),
+    application/json,, #-1 Expected application/json default CT)]
+
+&T_HC_POST_CUSTOM_CT testkit=
+  [switch(json_get([httppost([get(testkit/MOCK_URL)]/echo,data,text/plain)],ct),
+    text/plain,, #-1 Expected text/plain CT)]
+
+&T_HC_POST_NO_ARGS testkit=
+  [switch(httppost(), #-1 HTTPPOST REQUIRES URL AND BODY,,
+    #-1 Expected requires-args error)]
+
+&T_HC_E2E_FETCH_HALVE testkit=
+  @@ Fetch HP (100) and divide by 2 → 50
+  [switch(div([json_get([httpget([get(testkit/MOCK_URL)]/json/simple)],hp)],2),
+    50,, #-1 Expected 50)]

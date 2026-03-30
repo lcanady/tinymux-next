@@ -1,0 +1,119 @@
+@@ =============================================================================
+@@ test_jsonparse.mux — @rhost/testkit tests for the jsonparse module
+@@ Each &T_* attribute returns "" on pass, an error message on fail.
+@@ =============================================================================
+
+@@ Register this suite
+@tr testkit/REGISTER=T_JP_GET_BASIC jsonparse
+@tr testkit/REGISTER=T_JP_GET_NUMBER jsonparse
+@tr testkit/REGISTER=T_JP_GET_BOOL_TRUE jsonparse
+@tr testkit/REGISTER=T_JP_GET_BOOL_FALSE jsonparse
+@tr testkit/REGISTER=T_JP_GET_NULL jsonparse
+@tr testkit/REGISTER=T_JP_GET_NESTED jsonparse
+@tr testkit/REGISTER=T_JP_GET_ARRAY_IDX0 jsonparse
+@tr testkit/REGISTER=T_JP_GET_ARRAY_IDX2 jsonparse
+@tr testkit/REGISTER=T_JP_GET_NESTED_ARRAY jsonparse
+@tr testkit/REGISTER=T_JP_GET_MISSING_PATH jsonparse
+@tr testkit/REGISTER=T_JP_GET_BAD_JSON jsonparse
+@tr testkit/REGISTER=T_JP_KEYS_TWO jsonparse
+@tr testkit/REGISTER=T_JP_KEYS_NESTED jsonparse
+@tr testkit/REGISTER=T_JP_KEYS_NON_OBJECT jsonparse
+@tr testkit/REGISTER=T_JP_ALEN_THREE jsonparse
+@tr testkit/REGISTER=T_JP_ALEN_EMPTY jsonparse
+@tr testkit/REGISTER=T_JP_ALEN_NON_ARRAY jsonparse
+@tr testkit/REGISTER=T_JP_TYPE_OBJECT jsonparse
+@tr testkit/REGISTER=T_JP_TYPE_ARRAY jsonparse
+@tr testkit/REGISTER=T_JP_TYPE_STRING jsonparse
+@tr testkit/REGISTER=T_JP_TYPE_NUMBER jsonparse
+@tr testkit/REGISTER=T_JP_TYPE_BOOL jsonparse
+@tr testkit/REGISTER=T_JP_TYPE_NULL jsonparse
+@tr testkit/REGISTER=T_JP_ENCODE_BASIC jsonparse
+@tr testkit/REGISTER=T_JP_ENCODE_QUOTES jsonparse
+@tr testkit/REGISTER=T_JP_DECODE_BASIC jsonparse
+@tr testkit/REGISTER=T_JP_DECODE_UNESCAPES jsonparse
+
+@@ ---- Test definitions ------------------------------------------------------
+
+&T_JP_GET_BASIC testkit=
+  [switch(json_get({"name":"Hero"},name), Hero,, #-1 Expected Hero)]
+
+&T_JP_GET_NUMBER testkit=
+  [switch(json_get({"hp":100},hp), 100,, #-1 Expected 100)]
+
+&T_JP_GET_BOOL_TRUE testkit=
+  [switch(json_get({"alive":true},alive), true,, #-1 Expected true)]
+
+&T_JP_GET_BOOL_FALSE testkit=
+  [switch(json_get({"alive":false},alive), false,, #-1 Expected false)]
+
+&T_JP_GET_NULL testkit=
+  [switch(json_get({"x":null},x), null,, #-1 Expected null)]
+
+&T_JP_GET_NESTED testkit=
+  [switch(json_get({"v":{"hp":42}},v.hp), 42,, #-1 Expected 42)]
+
+&T_JP_GET_ARRAY_IDX0 testkit=
+  [switch(json_get([10,20,30],[0]), 10,, #-1 Expected 10)]
+
+&T_JP_GET_ARRAY_IDX2 testkit=
+  [switch(json_get([10,20,30],[2]), 30,, #-1 Expected 30)]
+
+&T_JP_GET_NESTED_ARRAY testkit=
+  [switch(json_get({"items":[{"name":"sword"}]},items[0].name), sword,, #-1 Expected sword)]
+
+&T_JP_GET_MISSING_PATH testkit=
+  [switch(json_get({"a":1},z), #-1 PATH NOT FOUND,, #-1 Expected error)]
+
+&T_JP_GET_BAD_JSON testkit=
+  [switch(json_get({broken},a), #-1 JSON PARSE ERROR,, #-1 Expected parse error)]
+
+&T_JP_KEYS_TWO testkit=
+  [switch(json_keys({"a":1,"b":2}), a b,, #-1 Expected 'a b' got [json_keys({"a":1,"b":2})])]
+
+&T_JP_KEYS_NESTED testkit=
+  [switch(json_keys({"v":{"hp":1,"mp":2}},v), hp mp,,
+    #-1 Expected 'hp mp' got [json_keys({"v":{"hp":1,"mp":2}},v)])]
+
+&T_JP_KEYS_NON_OBJECT testkit=
+  [switch(json_keys([1,2,3]), #-1 NOT AN OBJECT,, #-1 Expected error)]
+
+&T_JP_ALEN_THREE testkit=
+  [switch(json_array_len([1,2,3]), 3,, #-1 Expected 3)]
+
+&T_JP_ALEN_EMPTY testkit=
+  [switch(json_array_len([]), 0,, #-1 Expected 0)]
+
+&T_JP_ALEN_NON_ARRAY testkit=
+  [switch(json_array_len({"a":1}), #-1 NOT AN ARRAY,, #-1 Expected error)]
+
+&T_JP_TYPE_OBJECT testkit=
+  [switch(json_type({"a":1}), object,, #-1 Expected object)]
+
+&T_JP_TYPE_ARRAY testkit=
+  [switch(json_type([1,2]), array,, #-1 Expected array)]
+
+&T_JP_TYPE_STRING testkit=
+  [switch(json_type("hello"), string,, #-1 Expected string)]
+
+&T_JP_TYPE_NUMBER testkit=
+  [switch(json_type(42), number,, #-1 Expected number)]
+
+&T_JP_TYPE_BOOL testkit=
+  [switch(json_type(true), bool,, #-1 Expected bool)]
+
+&T_JP_TYPE_NULL testkit=
+  [switch(json_type(null), null,, #-1 Expected null)]
+
+&T_JP_ENCODE_BASIC testkit=
+  [switch(json_encode(hello), "hello",, #-1 Expected "hello")]
+
+&T_JP_ENCODE_QUOTES testkit=
+  @switch json_encode(say "hi")="say \"hi\"",1,,
+    #-1 Bad encoding: [json_encode(say "hi")]
+
+&T_JP_DECODE_BASIC testkit=
+  [switch(json_decode("hello"), hello,, #-1 Expected hello)]
+
+&T_JP_DECODE_UNESCAPES testkit=
+  [switch(json_decode("say \"hi\""), say "hi",,
+    #-1 Expected unescaped: [json_decode("say \"hi\"")])]

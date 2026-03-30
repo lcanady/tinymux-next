@@ -161,7 +161,17 @@ enum class SocketState {
     SSLWriteWantWrite,
     SSLWriteWantRead,
 #endif
+    // WebSocket states
+    WsHandshake,      // Reading HTTP Upgrade request
+    WsConnected,      // RFC 6455 framing active (plain ws://)
+#ifdef UNIX_SSL
+    WssHandshake,     // TLS accepted, reading HTTP Upgrade
+    WssConnected,     // TLS + RFC 6455 framing active (wss://)
+#endif
 };
+
+// Forward declaration — defined in ws_proto.h
+struct ws_state;
 
 typedef struct descriptor_data DESC;
 struct descriptor_data
@@ -221,6 +231,9 @@ struct descriptor_data
   int quota;
   struct program_data* program_data;
 
+  // WebSocket per-connection state. nullptr when not a WebSocket connection.
+  struct ws_state* ws;
+
   mux_sockaddr address;
 
   UTF8 addr[51];
@@ -252,6 +265,7 @@ typedef struct port_info
 #ifdef UNIX_SSL
     bool   fSSL;
 #endif
+    bool   fWS{};     // Accept WebSocket HTTP upgrade on this port
 } port_info;
 
 #define MAX_LISTEN_PORTS 30

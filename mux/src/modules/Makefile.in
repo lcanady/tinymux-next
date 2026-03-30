@@ -1,8 +1,8 @@
-CXX = @CXX@
+CXX = @CXX@ -std=c++17
 
-ALLSRC     = funcs.cpp sample.cpp sum.cpp sqlproxy.cpp sqlslave.cpp
+ALLSRC     = funcs.cpp sample.cpp sum.cpp sqlproxy.cpp sqlslave.cpp execscript.cpp jsonparse.cpp httpclient.cpp
 
-all: funcs.so sample.so sum.so sqlproxy.so sqlslave.so
+all: funcs.so sample.so sum.so sqlproxy.so sqlslave.so execscript.so jsonparse.so httpclient.so
 
 funcs.so: funcs.cpp funcs.h ../autoconf.h ../config.h ../libmux.h ../modules.h
 	( if [ -f funcs.so ]; then mv -f funcs.so funcs.so~ ; fi )
@@ -29,14 +29,29 @@ sqlslave.so: sqlslave.cpp sql.h ../autoconf.h ../config.h ../libmux.h ../modules
 	$(CXX) @DYNAMICLIB_CXXFLAGS@ @SQL_INCLUDE@ -o sqlslave.so sqlslave.cpp -L.. @SQL_LIBPATH@ @MUX_LIBS@ @SQL_LIBS@
 	( if [ -f sqlslave.so ]; then cd ../../game/bin ; rm -f sqlslave.so ; ln -s ../../src/modules/sqlslave.so sqlslave.so ; fi )
 
+execscript.so: execscript.cpp execscript.h ../autoconf.h ../config.h ../libmux.h ../modules.h ../command.h
+	( if [ -f execscript.so ]; then mv -f execscript.so execscript.so~ ; fi )
+	$(CXX) @DYNAMICLIB_CXXFLAGS@ -o execscript.so execscript.cpp -L.. @MUX_LIBS@
+	( if [ -f execscript.so ]; then cd ../../game/bin ; rm -f execscript.so ; ln -s ../../src/modules/execscript.so execscript.so ; fi )
+
+jsonparse.so: jsonparse.cpp jsonparse.h ../autoconf.h ../config.h ../libmux.h ../modules.h
+	( if [ -f jsonparse.so ]; then mv -f jsonparse.so jsonparse.so~ ; fi )
+	$(CXX) @DYNAMICLIB_CXXFLAGS@ -o jsonparse.so jsonparse.cpp -L.. @MUX_LIBS@
+	( if [ -f jsonparse.so ]; then cd ../../game/bin ; rm -f jsonparse.so ; ln -s ../../src/modules/jsonparse.so jsonparse.so ; fi )
+
+httpclient.so: httpclient.cpp httpclient.h ../autoconf.h ../config.h ../libmux.h ../modules.h
+	( if [ -f httpclient.so ]; then mv -f httpclient.so httpclient.so~ ; fi )
+	$(CXX) @DYNAMICLIB_CXXFLAGS@ -o httpclient.so httpclient.cpp -L.. @MUX_LIBS@ -lcurl
+	( if [ -f httpclient.so ]; then cd ../../game/bin ; rm -f httpclient.so ; ln -s ../../src/modules/httpclient.so httpclient.so ; fi )
+
 depend: $(ALLSRC) ../unsplit
 	for i in $(ALLSRC) ; do $(CXX) $(CXXFLAGS) @DYNAMICLIB_CXXFLAGS@ @SQL_INCLUDE@ -M $$i; done | ../unsplit > .depend~
 	mv .depend~ .depend
 
 clean:
-	-rm -f *.o a.out core gmon.out warn.log config.status config.log funcs.so~ sample.so~ sum.so~ sqlproxy.so~ sqlslave.so~
+	-rm -f *.o a.out core gmon.out warn.log config.status config.log funcs.so~ sample.so~ sum.so~ sqlproxy.so~ sqlslave.so~ execscript.so~ jsonparse.so~ httpclient.so~
 
 realclean:
-	-rm -f *.o a.out core gmon.out warn.log config.status config.log funcs.so funcs.so~ sample.so sample.so~ sum.so sum.so~ sqlproxy.so sqlproxy.so~ sqlslave.so sqlslave.so~ autoconf.h Makefile
+	-rm -f *.o a.out core gmon.out warn.log config.status config.log funcs.so funcs.so~ sample.so sample.so~ sum.so sum.so~ sqlproxy.so sqlproxy.so~ sqlslave.so sqlslave.so~ execscript.so execscript.so~ jsonparse.so jsonparse.so~ httpclient.so httpclient.so~ autoconf.h Makefile
 
 include .depend

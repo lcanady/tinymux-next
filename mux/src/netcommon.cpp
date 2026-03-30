@@ -10,6 +10,7 @@
 #include "autoconf.h"
 #include "config.h"
 #include "externs.h"
+#include "ws_proto.h"
 using namespace std;
 
 NAMETAB default_charset_nametab[] =
@@ -418,6 +419,27 @@ void queue_write_LEN(DESC *d, const UTF8 *b, size_t n)
 {
     if (0 == n)
     {
+        return;
+    }
+
+    // WebSocket: wrap plaintext output in a text frame, then queue the
+    // encoded bytes via a re-entrant call with state temporarily set to
+    // Accepted so the encoding step is skipped on the inner call.
+    //
+    if (d->ss == SocketState::WsConnected
+#ifdef UNIX_SSL
+     || d->ss == SocketState::WssConnected
+#endif
+       )
+    {
+        const auto frame = WsEncoder::text(
+            std::string_view(reinterpret_cast<const char *>(b), n));
+        const SocketState saved_ss = d->ss;
+        d->ss = SocketState::Accepted;   // suppress re-encoding
+        queue_write_LEN(d,
+            reinterpret_cast<const UTF8 *>(frame.data()),
+            frame.size());
+        d->ss = saved_ss;
         return;
     }
 

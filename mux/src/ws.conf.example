@@ -1,0 +1,27 @@
+# ws.conf — TinyMUX WebSocket Bridge Configuration
+# Place this file in your game/ directory (same location as netmux.conf).
+# Rename to ws.conf and adjust values as needed.
+#
+# All settings are optional; defaults are shown below.
+
+# Enable or disable the WebSocket bridge entirely
+ws_enabled      yes
+
+# Plain (ws://) WebSocket port.  Set to 0 to disable.
+ws_port         4202
+
+# TLS (wss://) WebSocket port.  Set to 0 to disable.
+# Requires ws_certfile and ws_keyfile to be set.
+wss_port        0
+
+# Path to PEM-encoded TLS certificate (required for wss://)
+# ws_certfile   /etc/ssl/certs/mux.crt
+
+# Path to PEM-encoded TLS private key (required for wss://)
+# ws_keyfile    /etc/ssl/private/mux.key
+
+# Interface to bind (empty = all interfaces)
+ws_bind         0.0.0.0
+
+# Maximum concurrent WebSocket connections
+ws_max_clients  100

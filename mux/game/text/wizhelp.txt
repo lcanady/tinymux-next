@@ -5367,3 +5367,342 @@ ZONE_RECURSION_LIMIT
   This directive specifies how far back to check a zone tree for control and
   commands.
 
+& EXECSCRIPT
+EXECSCRIPT
+
+  FUNCTION: execscript(script[, arg1[, arg2[, ...]]])
+  MODULE:   execscript (load with: module execscript in netmux.conf)
+  ACCESS:   Wizard only
+
+  Runs the named script from the game's scripts/ directory, passing any
+  additional arguments directly to the process via execvp (no shell is
+  involved). Returns the script's stdout, truncated to LBUF size (8000
+  characters).
+
+  The script name must be a plain filename with no path separators (/) or
+  shell metacharacters. Scripts must be executable and reside in the
+  game/scripts/ directory.
+
+  Arguments are passed exactly as given — there is no shell expansion, no
+  glob expansion, and no variable substitution. Always sanitize player input
+  with secure() before passing it to execscript.
+
+  Examples:
+    > think [execscript(echo.sh,hello world)]
+    hello world
+
+    > think [execscript(lookup.sh,playerdata,Hero)]
+    {"level":10,"guild":"Rangers"}
+
+    > think [json_get([execscript(player.sh,Hero)],level)]
+    10
+
+  Error Returns:
+    #-1 SCRIPT NOT FOUND OR NOT EXECUTABLE  -- script missing or not chmod +x
+    #-1 INVALID SCRIPT NAME                 -- illegal characters in name
+    #-1 PERMISSION DENIED                   -- called by non-wizard
+
+  Related Topics: json_get, httpget.
+
+& HTTPGET
+HTTPGET
+
+  FUNCTION: httpget(url[, header1[, header2[, ...]]])
+  MODULE:   httpclient (load with: module httpclient in netmux.conf)
+  ACCESS:   Wizard only
+
+  Makes an outbound HTTP GET request to url and returns the response body
+  as a string, truncated to LBUF size (8000 characters). Requires libcurl.
+
+  Up to 10 extra request headers may be passed as additional arguments in
+  "Name: Value" format. Follows up to 10 redirects automatically.
+
+  Examples:
+    > think [httpget(https://api.example.com/status)]
+    {"status":"ok"}
+
+    > think [json_get([httpget(https://api.example.com/player/1)],name)]
+    Hero
+
+    > think [httpget(https://api.example.com/data,Authorization: Bearer token)]
+    {"user":"Hero"}
+
+  Error Returns:
+    #-1 HTTP ERROR: <message>   -- network or DNS failure
+    #-1 HTTP <status>           -- non-2xx HTTP response (e.g. #-1 HTTP 404)
+    #-1 PERMISSION DENIED       -- called by non-wizard
+
+  Timeouts: connect 10s, total 30s.
+
+  Related Topics: httppost, json_get, execscript.
+
+& HTTPPOST
+HTTPPOST
+
+  FUNCTION: httppost(url, body[, content-type[, header1[, ...]]])
+  MODULE:   httpclient (load with: module httpclient in netmux.conf)
+  ACCESS:   Wizard only
+
+  Makes an outbound HTTP POST request to url with body as the request body.
+  Returns the response body, truncated to LBUF size (8000 characters).
+
+  content-type defaults to application/json if omitted or empty. Up to 10
+  extra request headers may follow the content-type argument.
+
+  Examples:
+    > think [httppost(https://api.example.com/log,{"event":"login"})]
+    {"accepted":true}
+
+    > think [httppost(https://api.example.com/form,name=Hero,application/x-www-form-urlencoded)]
+    {"saved":true}
+
+    > think [httppost(https://api.example.com/msg,{"text":[json_encode([name(%#)])]},application/json)]
+    {"id":42}
+
+  Error Returns:
+    #-1 HTTP ERROR: <message>   -- network or DNS failure
+    #-1 HTTP <status>           -- non-2xx HTTP response
+    #-1 PERMISSION DENIED       -- called by non-wizard
+
+  Related Topics: httpget, json_encode, json_get.
+
+& JSON_GET
+JSON_GET
+
+  FUNCTION: json_get(json, path)
+  MODULE:   jsonparse (load with: module jsonparse in netmux.conf)
+  ACCESS:   Wizard only
+
+  Returns the value at path within the JSON document json.
+
+  Strings are returned unquoted. Objects and arrays are returned as raw JSON
+  text. Numbers, booleans, and null are returned as their literal text.
+
+  Path syntax uses dot notation for object keys and bracket notation for
+  array indices (0-indexed). An empty path returns the root value.
+
+    name        top-level key "name"
+    vitals.hp   nested object key
+    items[0]    first element of array "items"
+    items[0].name  field of array element
+
+  Examples:
+    > think [json_get({"name":"Hero","hp":100},name)]
+    Hero
+
+    > think [json_get({"vitals":{"hp":42}},vitals.hp)]
+    42
+
+    > think [json_get({"v":%[10,20,30%]},v%[2%])]
+    30
+
+    > think [json_get({"items":%[{"name":"sword"}%]},items%[0%].name)]
+    sword
+
+    > think [json_get([httpget(https://api.example.com/player/1)],name)]
+    Hero
+
+  Note: JSON arrays must be wrapped in an object when passed inline because
+  bare array brackets %[...%] do not protect inner commas from argument
+  splitting. Use {"v":[...]} and path v.
+
+  Error Returns:
+    #-1 PATH NOT FOUND    -- key or index does not exist
+    #-1 JSON PARSE ERROR  -- malformed JSON input
+
+  Related Topics: json_keys, json_array_len, json_type, json_encode, json_decode, httpget.
+
+& JSON_KEYS
+JSON_KEYS
+
+  FUNCTION: json_keys(json[, path])
+  MODULE:   jsonparse (load with: module jsonparse in netmux.conf)
+  ACCESS:   Wizard only
+
+  Returns a space-separated list of the keys of the object at path (or the
+  root object if path is omitted).
+
+  Examples:
+    > think [json_keys({"a":1,"b":2,"c":3})]
+    a b c
+
+    > think [json_keys({"stats":{"str":10,"dex":14}},stats)]
+    str dex
+
+    > think [iter(json_keys({"hp":100,"mp":50}),## = [json_get({"hp":100,"mp":50},##)],, %r)]
+    hp = 100
+    mp = 50
+
+  Error Returns:
+    #-1 NOT AN OBJECT     -- value at path is not a JSON object
+    #-1 JSON PARSE ERROR  -- malformed JSON input
+    #-1 PATH NOT FOUND    -- path does not exist
+
+  Related Topics: json_get, json_array_len, json_type.
+
+& JSON_ARRAY_LEN
+JSON_ARRAY_LEN
+
+  FUNCTION: json_array_len(json[, path])
+  MODULE:   jsonparse (load with: module jsonparse in netmux.conf)
+  ACCESS:   Wizard only
+
+  Returns the number of elements in the array at path (or the root array if
+  path is omitted). Returns 0 for an empty array.
+
+  Examples:
+    > think [json_array_len({"items":%[1,2,3,4%]},items)]
+    4
+
+    > think [json_array_len({"items":%[%]},items)]
+    0
+
+    > think [setq(0,[json_array_len({"v":%[10,20,30%]},v)])][iter(lnum(%q0),[json_get({"v":%[10,20,30%]},v%[##%])],, %r)]
+    10
+    20
+    30
+
+  Error Returns:
+    #-1 NOT AN ARRAY      -- value is not a JSON array
+    #-1 JSON PARSE ERROR  -- malformed JSON input
+    #-1 PATH NOT FOUND    -- path does not exist
+
+  Related Topics: json_get, json_keys, json_type.
+
+& JSON_TYPE
+JSON_TYPE
+
+  FUNCTION: json_type(json[, path])
+  MODULE:   jsonparse (load with: module jsonparse in netmux.conf)
+  ACCESS:   Wizard only
+
+  Returns the JSON type of the value at path (or the root value if path is
+  omitted). One of: object, array, string, number, bool, null.
+
+  Examples:
+    > think [json_type({"a":1})]
+    object
+
+    > think [json_type({"v":%[1,2%]},v)]
+    array
+
+    > think [json_type("hello")]
+    string
+
+    > think [json_type(42)]
+    number
+
+    > think [json_type(true)]
+    bool
+
+    > think [json_type(null)]
+    null
+
+  Use json_type to guard before calling json_keys or json_array_len:
+    > &FN_SAFE_LEN me=[switch([json_type(%0)],array,[json_array_len(%0)],0)]
+
+  Error Returns:
+    #-1 JSON PARSE ERROR  -- malformed JSON input
+    #-1 PATH NOT FOUND    -- path does not exist
+
+  Related Topics: json_get, json_keys, json_array_len.
+
+& JSON_ENCODE
+JSON_ENCODE
+
+  FUNCTION: json_encode(value)
+  MODULE:   jsonparse (load with: module jsonparse in netmux.conf)
+  ACCESS:   Wizard only
+
+  JSON-encodes a plain string, producing a quoted JSON string with all
+  special characters properly escaped. The returned value includes the
+  surrounding double-quotes.
+
+  Use this when constructing JSON strings to pass to httppost or execscript.
+
+  Examples:
+    > think [json_encode(hello)]
+    "hello"
+
+    > think [json_encode(say "hi")]
+    "say \"hi\""
+
+    > think [json_encode(a\b)]
+    "a\\b"
+
+  Building a JSON body for httppost:
+    > think [httppost(https://api.example.com/msg,{"text":[json_encode([name(%#)])]})]
+
+  Related Topics: json_decode, json_get, httppost.
+
+& JSON_DECODE
+JSON_DECODE
+
+  FUNCTION: json_decode(json_string)
+  MODULE:   jsonparse (load with: module jsonparse in netmux.conf)
+  ACCESS:   Wizard only
+
+  Decodes a JSON string value: strips the surrounding double-quotes and
+  unescapes all JSON escape sequences (\", \\, \n, \r, \t, etc.). The
+  input must be a quoted JSON string (including the surrounding quotes).
+
+  Note: json_get already returns string values unquoted. Use json_decode
+  when you have a raw JSON string from another source — for example, a
+  field whose stored content is itself a quoted JSON string.
+
+  Examples:
+    > think [json_decode("hello")]
+    hello
+
+    > think [json_decode("say \"hi\"")]
+    say "hi"
+
+    > think [strlen([json_decode("line1\\nline2")])]
+    11
+
+  Error Returns:
+    #-1 NOT A JSON STRING   -- input is not a quoted JSON string
+
+  Related Topics: json_encode, json_get.
+
+& WEBSOCKET
+WEBSOCKET
+
+  FEATURE: WebSocket Bridge (built-in, no module required)
+
+  TinyMUX opens a second listening port (default 4202) that accepts RFC 6455
+  WebSocket connections. Any WebSocket client can connect and interact with
+  the game exactly as a standard telnet client would. The bridge is fully
+  transparent to the game itself.
+
+  CONFIGURATION (ws.conf in the same directory as netmux.conf):
+
+    ws_enabled     = yes    # Set to no to disable entirely
+    ws_port        = 4202   # Plain WebSocket port (0 = disabled)
+    wss_port       = 0      # TLS WebSocket port (0 = disabled)
+    cert_file      =        # PEM certificate (required when wss_port > 0)
+    key_file       =        # PEM private key  (required when wss_port > 0)
+    bind_addr      =        # Interface; empty = all interfaces
+    ws_max_clients = 100    # Max simultaneous WebSocket connections
+
+  GMCP SUPPORT:
+  GMCP telnet subnegotiations (IAC SB GMCP ... IAC SE) are automatically
+  translated into JSON WebSocket frames and back:
+
+    Game → Client:
+    {"type":"gmcp","package":"Char.Vitals","data":"{\"hp\":100,\"mp\":50}"}
+
+    Client → Game:
+    {"type":"gmcp","package":"Core.Hello","data":"{\"client\":\"MyClient\"}"}
+
+  The bridge handles telnet WILL/DO GMCP negotiation automatically.
+
+  CONNECTING:
+  JavaScript:  new WebSocket("ws://yourserver:4202")
+  Python:      websockets.connect("ws://yourserver:4202")
+  CLI:         wscat -c ws://localhost:4202
+
+  TLS WebSocket (WSS) requires --enable-ssl at build time.
+
+  Related Topics: the source code (ws_proto.cpp, ws_gmcp.cpp, ws_config.cpp).
+
